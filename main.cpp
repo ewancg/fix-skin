@@ -1,6 +1,8 @@
 #include "Magick++.h"
+#include <cstring>
 #include <filesystem>
 #include <iostream>
+#include <span>
 
 using namespace std;
 using namespace Magick;
@@ -9,8 +11,7 @@ using namespace Magick;
     std::cout << a << std::endl; \
     break;
 static constexpr const char g_help_text[] =
-    R"GORP(
-fix-skin: primitively adjust DDNet skins so that they will no longer error in the client
+    R"GORP(fix-skin: primitively adjust DDNet skins so that they will no longer error in the client
 Usage:
     fix-skin file:input file:output
 
@@ -20,9 +21,22 @@ Return codes:
     1: Process error
 )GORP";
 
-enum WrongInvocation { SANE = 0, ARGS_LT, ARGS_GT, INFILE_NE, OUTPATH_NE, OUTFILE_CONFLICT };
+enum InvocationError {
+    SANE = 0,
+    ARGS_LT,
+    ARGS_GT,
+    INFILE_NE,
+    OUTPATH_NE,
+    OUTFILE_CONFLICT,
+    ARGS_UNKNOWN
+};
+using Argument = std::tuple<const std::string, const std::string>;
+constexpr const Argument s_help_arg_strs = std::make_tuple("-h", "--help");
+constexpr const std::array<Argument, 1> s_args = {s_help_arg_strs};
 
-void print_help(char *argv[], WrongInvocation error = SANE)
+std::vector<std::string> unknown_args;
+
+void print_help(char *argv[], InvocationError error = SANE)
 {
     switch (error) {
     case SANE:
@@ -33,9 +47,16 @@ void print_help(char *argv[], WrongInvocation error = SANE)
         ERROR("Not enough arguments.")
     case ARGS_GT:
         ERROR("Too many arguments.")
+    case ARGS_UNKNOWN: {
+        std::string str;
+        for (int i = unknown_args.size() - 1; i >= 0; i--) {
+            str += unknown_args.at(i) + (i == 0 ? "" : " ");
+        }
+        ERROR("Unknown argument[s]: " + str);
+    }
     case INFILE_NE:
         ERROR("Input file " + std::filesystem::path(argv[1]).string()
-              + "is inaccessible or does not exist.")
+              + " is inaccessible or does not exist.")
     case OUTPATH_NE:
         ERROR("Output file directory " + std::filesystem::path(argv[2]).parent_path().string()
               + " is unreadable or does not exist.")
@@ -45,26 +66,64 @@ void print_help(char *argv[], WrongInvocation error = SANE)
     std::cout << g_help_text << std::endl;
 }
 
-WrongInvocation sane(int argc, char *argv[])
+bool is_arg(const char *str, const Argument &arg)
 {
-    if (argc <= 2)
-        return ARGS_LT;
-    if (argc >= 4)
-        return ARGS_GT;
-    if (!std::filesystem::exists(argv[1]))
-        return INFILE_NE;
-    if (!std::filesystem::exists(std::filesystem::path(argv[2]).parent_path()))
-        return OUTPATH_NE;
-    if (std::filesystem::exists(argv[2]))
-        return OUTFILE_CONFLICT;
+    std::string lhs = std::get<0>(arg);
+    std::string rhs = std::get<1>(arg);
+    return lhs == str || rhs == str;
+}
 
-    return SANE;
+bool is_arg(const char *str)
+{
+    for (auto i = 0; i < s_args.size(); i++) {
+        if (is_arg(str, s_args[i]))
+            return true;
+    };
+    return false;
+}
+
+InvocationError sane(int argc, char *argv[])
+{
+    switch (argc) {
+    case 3:
+        if (std::string(argv[2]).starts_with('-') && !is_arg(argv[2])) {
+            unknown_args.push_back(argv[2]);
+        } else {
+            if (!std::filesystem::exists(argv[1]))
+                return INFILE_NE;
+            if (!std::filesystem::exists(std::filesystem::path(argv[2]).parent_path()))
+                return OUTPATH_NE;
+            if (std::filesystem::exists(argv[2]))
+                return OUTFILE_CONFLICT;
+        }
+        [[fallthrough]];
+    case 2:
+        if (std::string(argv[1]).starts_with('-') && !is_arg(argv[1])) {
+            unknown_args.push_back(argv[1]);
+        }
+        break;
+    case 1:
+        [[fallthrough]];
+    case 0:
+        return ARGS_LT;
+    default:
+        return ARGS_GT;
+    }
+
+    if (!unknown_args.empty())
+        return ARGS_UNKNOWN;
+    if (argc == 3)
+        return SANE;
+    return ARGS_LT;
 }
 
 int main(int argc, char *argv[])
 {
-    WrongInvocation error = sane(argc, argv);
-    if (error) {
+    InvocationError error = sane(argc, argv);
+    bool help_requested = argc >= 2 && is_arg(argv[1], s_help_arg_strs);
+    if (error || help_requested) {
+        if (help_requested)
+            error = SANE;
         print_help(argv, error);
         return -error;
     }
