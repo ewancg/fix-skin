@@ -22,9 +22,9 @@ Return codes:
 
 enum WrongInvocation { SANE = 0, ARGS_LT, ARGS_GT, INFILE_NE, OUTPATH_NE, OUTFILE_CONFLICT };
 
-void print_help(int malformed = 0)
+void print_help(char *argv[], WrongInvocation error = SANE)
 {
-    switch (malformed) {
+    switch (error) {
     case SANE:
         [[fallthrough]];
     default:
@@ -34,9 +34,11 @@ void print_help(int malformed = 0)
     case ARGS_GT:
         ERROR("Too many arguments.")
     case INFILE_NE:
-        ERROR("Input file is inaccessible or does not exist.")
+        ERROR("Input file " + std::filesystem::path(argv[1]).string()
+              + "is inaccessible or does not exist.")
     case OUTPATH_NE:
-        ERROR("Output file directory is unreadable or does not exist.")
+        ERROR("Output file directory " + std::filesystem::path(argv[2]).parent_path().string()
+              + " is unreadable or does not exist.")
     case OUTFILE_CONFLICT:
         ERROR("Output file already exists.")
     }
@@ -63,7 +65,7 @@ int main(int argc, char *argv[])
 {
     WrongInvocation error = sane(argc, argv);
     if (error) {
-        print_help(error);
+        print_help(argv, error);
         return -error;
     }
     std::string input_file = std::filesystem::absolute(argv[1]).string(),
