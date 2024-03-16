@@ -70,31 +70,37 @@ int main(int argc, char *argv[])
                 output_file = std::filesystem::absolute(argv[2]).string();
 
     InitializeMagick(*argv);
-    Image image;
     try {
+        Image image;
         // Read a file into image object
+        std::cout << "Reading from " << input_file << std::endl;
         image.read(input_file);
         auto geometry = image.size();
 
         auto w = geometry.width();
-        if (w % 8)
-            w += (8 - (w % 8));
+        if (w % 8 != 0)
+            w = ((w + 8 - 1) / 8) * 8;
 
-        auto h = geometry.width();
-        if (h % 8)
-            h += (8 - (w % 8));
+        auto h = geometry.height();
+        if (h % 8 != 0)
+            h = ((h + 8 - 1) / 8) * 8;
+
+        std::cout << std::to_string(geometry.width()) + "x" + std ::to_string(geometry.height())
+                  << std::endl;
+        std::cout << std::to_string(w) + "x" + std ::to_string(h) + "," << std::endl;
 
         geometry.xOff(0);
         geometry.yOff(0);
         geometry.width(w);
-        geometry.width(h);
+        geometry.height(h);
 
-        image.crop(geometry);
-
+        image.resize(geometry);
         image.colorSpace(ColorspaceType::sRGBColorspace);
-        image.depth(32);
+
+        image.depth(8);
 
         // Write the image to a file
+        std::cout << "Writing to " << output_file << std::endl;
         image.write(output_file);
     } catch (Exception &error_) {
         cout << "Caught exception: " << error_.what() << endl;
