@@ -82,6 +82,15 @@ bool is_arg(const char *str)
     return false;
 }
 
+uint32_t roundDimension(int x, int multiple)
+{
+    int remainder = x % multiple;
+    if (remainder == 0)
+        return x;
+
+    return x + multiple - remainder;
+}
+
 InvocationError sane(int argc, char *argv[])
 {
     switch (argc) {
@@ -139,15 +148,10 @@ int main(int argc, char *argv[])
         image.read(input_file);
         auto geometry = image.size();
 
-        auto w = geometry.width();
-        if (w % 8 != 0)
-            w = ((w + 8 - 1) / 8) * 8;
+        auto w = roundDimension(geometry.width(), 8);
+        auto h = roundDimension(geometry.height(), 4);
 
-        auto h = geometry.height();
-        if (h % 8 != 0)
-            h = ((h + 8 - 1) / 8) * 8;
-
-        if (verbose) {
+        if (!verbose) {
             std::cout << std::to_string(geometry.width()) + "x" + std ::to_string(geometry.height())
                       << " -> " << std::to_string(w) + "x" + std ::to_string(h) << std::endl;
         }
@@ -157,10 +161,12 @@ int main(int argc, char *argv[])
         geometry.width(w);
         geometry.height(h);
 
-        image.resize(geometry);
+        image.alpha(true);
+        image.depth(8);
         image.colorSpace(ColorspaceType::sRGBColorspace);
 
-        image.depth(8);
+        geometry.aspect(true);
+        image.resize(geometry);
 
         // Write the image to a file
         if (verbose)
