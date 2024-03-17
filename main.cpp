@@ -1,8 +1,6 @@
 #include "Magick++.h"
-#include <cstring>
 #include <filesystem>
 #include <iostream>
-#include <span>
 
 using namespace std;
 using namespace Magick;
@@ -32,8 +30,10 @@ enum InvocationError {
 };
 using Argument = std::tuple<const std::string, const std::string>;
 constexpr const Argument s_help_arg_strs = std::make_tuple("-h", "--help");
-constexpr const std::array<Argument, 1> s_args = {s_help_arg_strs};
+constexpr const Argument s_verbose_arg_strs = std::make_tuple("-v", "--verbose");
+constexpr const std::array<Argument, 2> s_args = {s_help_arg_strs, s_verbose_arg_strs};
 
+bool verbose = false;
 std::vector<std::string> unknown_args;
 
 void print_help(char *argv[], InvocationError error = SANE)
@@ -134,7 +134,8 @@ int main(int argc, char *argv[])
     try {
         Image image;
         // Read a file into image object
-        std::cout << "Reading from " << input_file << std::endl;
+        if (verbose)
+            std::cout << "Reading from " << input_file << std::endl;
         image.read(input_file);
         auto geometry = image.size();
 
@@ -146,14 +147,15 @@ int main(int argc, char *argv[])
         if (h % 8 != 0)
             h = ((h + 8 - 1) / 8) * 8;
 
-        std::cout << std::to_string(geometry.width()) + "x" + std ::to_string(geometry.height())
-                  << std::endl;
-        std::cout << std::to_string(w) + "x" + std ::to_string(h) + "," << std::endl;
-
         geometry.xOff(0);
         geometry.yOff(0);
         geometry.width(w);
         geometry.height(h);
+
+        if (verbose) {
+            std::cout << std::to_string(geometry.width()) + "x" + std ::to_string(geometry.height())
+                      << " -> " << std::to_string(w) + "x" + std ::to_string(h) << std::endl;
+        }
 
         image.resize(geometry);
         image.colorSpace(ColorspaceType::sRGBColorspace);
@@ -161,7 +163,8 @@ int main(int argc, char *argv[])
         image.depth(8);
 
         // Write the image to a file
-        std::cout << "Writing to " << output_file << std::endl;
+        if (verbose)
+            std::cout << "Writing to " << output_file << std::endl;
         image.write(output_file);
     } catch (Exception &error_) {
         cout << "Caught exception: " << error_.what() << endl;
@@ -169,3 +172,5 @@ int main(int argc, char *argv[])
     }
     return 0;
 }
+
+// todo add verbose
