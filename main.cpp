@@ -147,15 +147,15 @@ int main(int argc, char *argv[])
         if (h % 8 != 0)
             h = ((h + 8 - 1) / 8) * 8;
 
-        geometry.xOff(0);
-        geometry.yOff(0);
-        geometry.width(w);
-        geometry.height(h);
-
         if (verbose) {
             std::cout << std::to_string(geometry.width()) + "x" + std ::to_string(geometry.height())
                       << " -> " << std::to_string(w) + "x" + std ::to_string(h) << std::endl;
         }
+
+        geometry.xOff(0);
+        geometry.yOff(0);
+        geometry.width(w);
+        geometry.height(h);
 
         image.resize(geometry);
         image.colorSpace(ColorspaceType::sRGBColorspace);
