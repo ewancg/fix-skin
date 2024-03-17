@@ -26,7 +26,7 @@ Return codes:
 
 enum InvocationError {
     UNKNOWN = -1,
-    SANE = 0,
+    OK = 0,
     ARGS_LT,
     ARGS_GT,
     INFILE_NE,
@@ -43,10 +43,10 @@ bool verbose = false;
 bool help_requested = false;
 std::vector<std::string> unknown_args;
 
-void print_help(char *argv[], InvocationError error = SANE)
+void print_help(char *argv[], InvocationError error = OK)
 {
     switch (error) {
-    case SANE:
+    case OK:
         [[fallthrough]];
     default:
         break;
@@ -96,7 +96,7 @@ InvocationError sane(int argc, char *argv[])
             if (arg) {
                 if (arg == &s_help_arg_strs) {
                     help_requested = true;
-                    return SANE;
+                    return OK;
                 } else if (arg == &s_verbose_arg_strs) {
                     verbose = true;
                 }
@@ -134,7 +134,7 @@ InvocationError sane(int argc, char *argv[])
     }
 
     if (argc == 3)
-        return SANE;
+        return OK;
     return ARGS_LT;
 }
 
@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
     InvocationError error = sane(argc, argv);
     if (error || help_requested) {
         if (help_requested)
-            error = SANE;
+            error = OK;
         print_help(argv, error);
         return -error;
     }
@@ -184,7 +184,7 @@ int main(int argc, char *argv[])
         image.write(output_file);
     } catch (Exception &error_) {
         cout << "Caught exception: " << error_.what() << endl;
-        return UNKNOWN;
+        error = UNKNOWN;
     }
-    return 0;
+    return -error;
 }
