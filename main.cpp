@@ -1,11 +1,11 @@
 ﻿#include "Magick++.h"
 #include <filesystem>
 #include <iostream>
+#include <string>
+#include <string_view>
+#include <vector>
 
-using namespace std;
-
-std::time_t g_t = std::time(nullptr);
-std::tm g_tm{};
+time_t g_t = std::time(nullptr);
 
 enum LogLevel { INFO, WARN, FATAL };
 template<typename... Ts>
@@ -17,18 +17,16 @@ static void log(LogLevel level, const Ts... msg) noexcept
 }
 
 template<typename... Ts>
-static inline void error(const Ts... msg) noexcept
+static void error(const Ts... msg) noexcept
 {
-    g_tm = *std::localtime(&g_t);
-    std::cerr << "Error [" << std::put_time(&g_tm, "%X") << "]: ";
+    std::cerr << "Error [" << std::put_time(std::localtime(&g_t), "%X") << "]: ";
     log(LogLevel::FATAL, msg...);
 }
 
 template<typename... Ts>
-static inline void warn(const Ts... msg) noexcept
+static void warn(const Ts... msg) noexcept
 {
-    g_tm = *std::localtime(&g_t);
-    std::cerr << "Warning [" << std::put_time(&g_tm, "%X") << "]: ";
+    std::cerr << "Warning [" << std::put_time(std::localtime(&g_t), "%X") << "]: ";
     log(LogLevel::WARN, msg...);
 }
 
@@ -53,9 +51,9 @@ Return codes:
 )GORP";
 
 using Argument = std::tuple<const std::string, const std::string>;
-constexpr const Argument g_help_arg_strs = std::make_tuple("-h", "--help");
-constexpr const Argument g_verbose_arg_strs = std::make_tuple("-v", "--verbose");
-constexpr const std::array<Argument, 2> s_args = {g_help_arg_strs, g_verbose_arg_strs};
+constexpr const Argument g_help_arg = std::make_tuple("-h", "--help");
+constexpr const Argument g_verbose_arg = std::make_tuple("-v", "--verbose");
+constexpr const std::array<Argument, 2> g_args = {g_help_arg, g_verbose_arg};
 
 bool g_verbose = false;
 bool g_help_requested = false;
@@ -101,26 +99,28 @@ void print_help(char *argv[], ErrorStatus status = OK)
         error("Unknown error.");
         return;
     }
-    std::cout << g_help_text << std::endl;
+    info(g_help_text);
 }
 
 bool is_arg(const char *str, const Argument &arg)
 {
-    return str == std::get<0>(arg) || str == std::get<1>(arg);
+    return str == get<0>(arg) || str == get<1>(arg);
 }
 
 const Argument *is_arg(const char *str)
 {
-    for (const auto &it : s_args) {
+    for (const auto &it : g_args) {
         if (is_arg(str, it))
             return &it;
     }
     return nullptr;
 }
 
-const std::integral auto next_multiple(const std::integral auto x, const int multiple)
+template<typename T>
+const std::unsigned_integral auto next_multiple(const std::unsigned_integral auto x,
+                                                const T multiple)
 {
-    const std::integral auto remainder = x % multiple;
+    const std::unsigned_integral auto remainder = x % multiple;
     return remainder ? x + multiple - remainder : x;
 }
 
@@ -130,10 +130,10 @@ ErrorStatus sane(int argc, char *argv[])
         if (std::string_view(argv[i]).starts_with('-')) {
             auto arg = is_arg(argv[i]);
             if (arg) {
-                if (arg == &g_help_arg_strs) {
+                if (arg == &g_help_arg) {
                     g_help_requested = true;
                     return OK;
-                } else if (arg == &g_verbose_arg_strs) {
+                } else if (arg == &g_verbose_arg) {
                     g_verbose = true;
                 }
             } else {
@@ -187,7 +187,7 @@ int main(int argc, char *argv[])
             Image image;
             // Read a file into image object
             if (g_verbose)
-                std::cout << "Reading from " << input_file << std::endl;
+                info("Reading from ", input_file);
             image.read(input_file);
             auto geometry = image.size();
 
@@ -195,9 +195,13 @@ int main(int argc, char *argv[])
             auto h = next_multiple(geometry.height(), 4);
 
             if (g_verbose) {
-                std::cout << std::to_string(geometry.width()) + "x"
-                                 + std::to_string(geometry.height())
-                          << " -> " << std::to_string(w) + "x" + std ::to_string(h) << std::endl;
+                info(std::to_string(geometry.width()),
+                     "x",
+                     std::to_string(geometry.height()),
+                     " -> ",
+                     std::to_string(w),
+                     "x",
+                     std::to_string(h));
             }
 
             geometry.xOff(0);
