@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 time_t g_t = std::time(nullptr);
@@ -12,7 +13,10 @@ template<typename... Ts>
 static void log(LogLevel level, const Ts... msg) noexcept
 {
     auto &stream = (level == INFO) ? std::cout : std::cerr;
-    ([&] { stream << msg; }(), ...);
+    // ([&] { stream << msg; }(), ...);
+    auto iteration = [&](auto msg) { stream << msg; };
+    (iteration(msg), ...);
+
     std::endl(stream);
 }
 
@@ -37,7 +41,7 @@ static inline void info(const Ts... msg) noexcept
 }
 
 static constexpr const char g_help_text[] =
-    R"GORP(fix-skin: primitively adjust a DDNet skin so that it will no longer error in the client
+    R"RAW(fix-skin: primitively adjust a DDNet skin so that it will no longer error in the client
 Usage:
    fix-skin file:input file:output
 
@@ -48,7 +52,7 @@ Return codes:
    -*   Bad invocation
     0   Success
     1   Unknown error
-)GORP";
+)RAW";
 
 using Argument = std::tuple<const std::string, const std::string>;
 constexpr const Argument g_help_arg = std::make_tuple("-h", "--help");
@@ -130,10 +134,10 @@ ErrorStatus sane(int argc, char *argv[])
         if (std::string_view(argv[i]).starts_with('-')) {
             auto arg = is_arg(argv[i]);
             if (arg) {
-                if (arg == &g_help_arg) {
+                if (*arg == g_help_arg) {
                     g_help_requested = true;
                     return OK;
-                } else if (arg == &g_verbose_arg) {
+                } else if (*arg == g_verbose_arg) {
                     g_verbose = true;
                 }
             } else {
@@ -151,6 +155,8 @@ ErrorStatus sane(int argc, char *argv[])
     }
 
     switch (argc) {
+    default:
+        [[fallthrough]];
     case 3:
         if (!std::filesystem::exists(argv[1]))
             return ERROR_INFILE_NE;
@@ -162,11 +168,9 @@ ErrorStatus sane(int argc, char *argv[])
     case 2:
         [[fallthrough]];
     case 1:
-        [[fallthrough]];
-    case 0: // Impossible
         return ERROR_ARGS_LT;
-    default:
-        return ERROR_ARGS_GT;
+    case 0:
+        std::unreachable();
     }
 }
 
@@ -195,13 +199,7 @@ int main(int argc, char *argv[])
             auto h = next_multiple(geometry.height(), 4);
 
             if (g_verbose) {
-                info(std::to_string(geometry.width()),
-                     "x",
-                     std::to_string(geometry.height()),
-                     " -> ",
-                     std::to_string(w),
-                     "x",
-                     std::to_string(h));
+                info(geometry.width(), "x", geometry.height(), " -> ", w, "x", h);
             }
 
             geometry.xOff(0);

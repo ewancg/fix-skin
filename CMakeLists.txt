@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 
 project(fix-skin LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_definitions(-DMAGICKCORE_QUANTUM_DEPTH=16)
