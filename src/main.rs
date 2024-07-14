@@ -9,14 +9,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 /// Convert malformed DDNet skins into ones which will not cause an error when loaded in the DDNet client.
 /// Return codes:
 ///     0: Success
-///    >0: Partial failure (x skins failed) 
+///    >0: Partial failure (x skins failed)
 ///    -1: indicates full failure
 ///    -2: other error
 #[derive(Parser, Debug)]
-#[command(
-    version,
-    verbatim_doc_comment
-)]
+#[command(version, verbatim_doc_comment)]
 struct Args {
     /// Output file or directory
     #[arg(short, long)]
@@ -90,11 +87,17 @@ fn try_main() -> anyhow::Result<ProcessResults> {
     }
 
     let total_files = all_files.len();
-    if total_files > 1 {
-        if args.output.is_file() || !args.output.exists() {
-            anyhow::bail!(
-                "Output must be a pre-existing directory when multiple inputs are provided."
-            )
+    match total_files {
+        0 => {
+            anyhow::bail!("Input expression(s) yielded no files.")
+        }
+        1 => {}
+        _ => {
+            if args.output.is_file() || !args.output.exists() {
+                anyhow::bail!(
+                    "Output must be a pre-existing directory when multiple inputs are provided."
+                )
+            }
         }
     }
 
@@ -124,6 +127,9 @@ fn main() {
         Ok(ProcessResults::Success) => std::process::exit(0),
         Ok(ProcessResults::PartialFailure(x)) => std::process::exit(x.try_into().unwrap()),
         Ok(ProcessResults::TotalFailure) => std::process::exit(-1),
-        Err(_) => std::process::exit(-2),
+        Err(e) => {
+            eprintln!("{e:?}");
+            std::process::exit(-2)
+        }
     }
 }
