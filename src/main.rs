@@ -14,10 +14,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Convert malformed DDNet skins into ones which will not cause an error when loaded in the DDNet client.
 /// Return codes:
-///     0: Success
-///    >0: Partial failure (x skins failed)
-///    -1: indicates full failure
-///    -2: other error
+///     0: Full success
+///   > 0: Partial failure (x skins could not be converted)
+///    -1: Full failure (all skins could nod be converted)
+///    -2: Other error
 #[derive(Parser, Debug)]
 #[command(version, verbatim_doc_comment)]
 struct Args {
@@ -33,7 +33,7 @@ struct Args {
     verbose: bool,
 }
 
-fn process_files(
+fn convert_skin(
     file: &Path,
     output: &Path,
 ) -> anyhow::Result<()> {
@@ -42,7 +42,7 @@ fn process_files(
     //    anyhow::bail!("Input must be pre-existing a file ({file:?}).")
     //}
 
-    let mut img = image::open(&file).map_err(|e| anyhow!("Image '{}' failed to load: {e}", std::path::absolute(&file).unwrap().into_os_string().into_string().unwrap()))?;
+    let mut img = image::open(&file).map_err(|e| anyhow!("Image '{}' failed to load: {e}", std::path::absolute(&file).unwrap().display()))?;
 
     img = img.resize_to_fill(
         (img.width() + 7) & !7u32,
@@ -103,7 +103,7 @@ fn try_main() -> anyhow::Result<ProcessResults> {
         if args.output.is_dir() {
             o.to_mut().push(file.file_name().expect("What the fuck"));
         }
-        match process_files(file.as_path(), o.as_path()) {
+        match convert_skin(file.as_path(), o.as_path()) {
             Ok(_) => {
                 if args.verbose {
                     println!("Successfully converted: {file:?} -> {o:?}");
